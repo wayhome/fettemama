@@ -2,16 +2,16 @@ package main
 
 import (
 	"fmt"
+	"github.com/hoisie/mustache"
+	"github.com/hoisie/web"
 	"time"
-	"mustache"
-	"web"
 )
 
 func rss(ctx *web.Context) string {
-		Db := DBGet()
+	Db := DBGet()
 	defer Db.Close()
 
-posts, _ := Db.GetLastNPosts(20) //postsForMonth(time.LocalTime())//
+	posts, _ := Db.GetLastNPosts(20) //postsForMonth(time.LocalTime())//
 	tmpl, _ := mustache.ParseFile("templ/rss.mustache")
 
 	type RssItem struct {
@@ -24,7 +24,7 @@ posts, _ := Db.GetLastNPosts(20) //postsForMonth(time.LocalTime())//
 
 	var items []RssItem
 	for _, post := range posts {
-		post_date := time.SecondsToLocalTime(post.Timestamp)
+		post_date := time.Unix(post.Timestamp, 0)
 		date := post_date.Format("Mon, 02 Jan 2006 15:04:05 -0700")
 		title := htmlstrip(post.Content)
 		l := len(title)

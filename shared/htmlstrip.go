@@ -1,13 +1,12 @@
-package main
+package shared
 
 /*import (
 	"fmt"
 )
 */
 
-
 //I hope I got the slices right and am not copying strings aroung :]
-func htmlstrip(s string) string {
+func Htmlstrip(s string) string {
 	l := len(s)
 	sl := []byte(s)
 
@@ -34,6 +33,7 @@ func htmlstrip(s string) string {
 
 	return string(ts)
 }
+
 /*
 var x = `Living the future:
 <blockquote>Die US-Marine hat erstmals einen Hochenergie-Laser auf See abgefeuert - und bei dem Experiment ein kleines Boot in Brand gesetzt. Schiffe sollen sich künftig mit solchen Energiewaffen verteidigen</blockquote>

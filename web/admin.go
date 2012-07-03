@@ -1,13 +1,12 @@
 package main
 
 import (
-	"web"
-	"fmt"
 	"crypto/md5"
-	"os"
-	"time"
+	"fmt"
+	"github.com/hoisie/mustache"
+	"github.com/hoisie/web"
 	"strconv"
-	"mustache"
+	"time"
 )
 
 /*
@@ -35,16 +34,16 @@ func checkGodLevel(ctx *web.Context) bool {
 func godHash(str string) string {
 	hasher := md5.New()
 	hasher.Write([]byte(str))
-	return fmt.Sprintf("%x", hasher.Sum())
+	return fmt.Sprintf("%x", hasher.Sum(nil))
 }
 
-func createNewPost(content string) os.Error {
+func createNewPost(content string) error {
 	Db := DBGet()
 	defer Db.Close()
 
 	post := BlogPost{
 		Content:   content,
-		Timestamp: time.Seconds(),
+		Timestamp: time.Now(),
 		Id:        0, //0 = create new post
 	}
 
@@ -95,7 +94,7 @@ func adminPost(ctx *web.Context) {
 	if ctx.Params["what"] == "post" {
 		err := createNewPost(ctx.Params["content"])
 		if err != nil {
-			ctx.WriteString("couldn't post: " + err.String())
+			ctx.WriteString("couldn't post: " + err.Error())
 			ctx.WriteString("<br><br><A href='/'>Index</a>")
 			return
 		}
@@ -104,7 +103,6 @@ func adminPost(ctx *web.Context) {
 	}
 }
 
-
 func editGet(ctx *web.Context) string {
 	if !checkGodLevel(ctx) {
 		return mustache.RenderFile("templ/admin_login.mustache")
@@ -112,7 +110,7 @@ func editGet(ctx *web.Context) string {
 	Db := DBGet()
 	defer Db.Close()
 
-	id, _ := strconv.Atoi64(ctx.Params["id"])
+	id, _ := strconv.ParseInt(ctx.Params["id"], 10, 64)
 	post, err := Db.GetPost(id)
 	if err != nil {
 		return "couldn't load post with given id!"
@@ -133,7 +131,7 @@ func editPost(ctx *web.Context) {
 	Db := DBGet()
 	defer Db.Close()
 
-	id, _ := strconv.Atoi64(ctx.Params["postid"])
+	id, _ := strconv.ParseInt(ctx.Params["postid"], 10, 64)
 	post, err := Db.GetPost(id)
 	if err != nil {
 		ctx.WriteString("couldn't load post with given id!")

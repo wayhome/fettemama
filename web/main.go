@@ -1,11 +1,9 @@
 package main
 
 import (
-	"web"
+	"github.com/hoisie/web"
 	//	"fmt"
 )
-
-
 
 func main() {
 	DBConnect()
@@ -19,7 +17,6 @@ func main() {
 	web.Get("/rss.xml", rss)
 	web.Get("/index.php/feed/", rss)
 	web.Get("/index.php/feed/atom/", rss)
-
 
 	web.Get("/admin/edit", editGet)
 	web.Post("/admin/edit", editPost)

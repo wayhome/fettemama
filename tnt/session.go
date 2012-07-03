@@ -1,12 +1,11 @@
 package main
 
 import (
-	"net"
-	"os"
-	"fmt"
 	"bufio"
-	"strings"
 	"crypto/md5"
+	"fmt"
+	"net"
+	"strings"
 )
 
 //md5 hashed passwords
@@ -126,7 +125,7 @@ func (s *BlogSession) Auth(pwd string) bool {
 	prev_level := s.permission_level
 	hasher := md5.New()
 	hasher.Write([]byte(pwd))
-	h_pwd := fmt.Sprintf("%x", hasher.Sum())
+	h_pwd := fmt.Sprintf("%x", hasher.Sum(nil))
 
 	if h_pwd == user_pass {
 		s.permission_level = 0
@@ -160,7 +159,7 @@ func (s *BlogSession) ResetInputBuffer() {
 	s.input_buffer = ""
 }
 
-func (s *BlogSession) readline(b *bufio.Reader) (p []byte, err os.Error) {
+func (s *BlogSession) readline(b *bufio.Reader) (p []byte, err error) {
 	if p, err = b.ReadSlice('\n'); err != nil {
 		return nil, err
 	}
@@ -189,7 +188,7 @@ func (session *BlogSession) connReader() {
 }
 
 func (session *BlogSession) connWriter() {
-	var err os.Error
+	var err error
 	for {
 		b := []byte(<-session.write_chan)
 		if !session.active {
@@ -201,7 +200,6 @@ func (session *BlogSession) connWriter() {
 		}
 	}
 }
-
 
 func (session *BlogSession) inputProcessor() {
 	for {
@@ -224,7 +222,7 @@ func (session *BlogSession) processInput(user_input string) {
 		session.Server().PostStatus("* [" + (session.conn).RemoteAddr().String() + "] user input: " + user_input)
 	}
 
-	items := strings.Split(user_input, " ", -1)
+	items := strings.Split(user_input, " ")
 	session.input_buffer += user_input
 	session.input_buffer += "\n"
 	session.Send(session.commandHandler.HandleCommand(session, items))

@@ -1,12 +1,12 @@
-package main
+package shared
 
 import (
-	"os"
 	"fmt"
-	"time"
-	"launchpad.net/gobson/bson"
-	"launchpad.net/mgo"
+	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
+	"os"
 	"strings"
+	"time"
 	//	"html"
 )
 
@@ -20,16 +20,15 @@ type MongoDB struct {
 func DBGet() *MongoDB {
 	d := &MongoDB{}
 	d.session = mgoSession.Copy()
-	tmp := d.session.DB("blog")
-	d.db = &tmp
+	d.db = d.session.DB("blog")
 	return d
 }
 
 func DBConnect() {
-	var err os.Error
-	mgoSession, err = mgo.Mongo("127.0.0.1")
+	var err error
+	mgoSession, err = mgo.Dial("10.13.37.23")
 	if err != nil {
-		fmt.Println("Couldn't connect to mongo db @ localhost")
+		fmt.Println("Couldn't connect to mongo db @ localhost: "+ err.Error() + "\n")
 		os.Exit(-1)
 		return
 	}
@@ -45,7 +44,7 @@ func (self *MongoDB) Close() {
 
 //warning: it will marhsall the comments list - so we need to change this
 //if we enable updating/editing posts
-func (md *MongoDB) StorePost(post *BlogPost) (id int64, err os.Error) {
+func (md *MongoDB) StorePost(post *BlogPost) (id int64, err error) {
 	db := md.db
 	fmt.Printf("storing post: %#v\n", *post)
 	//create new post
@@ -72,14 +71,14 @@ func (md *MongoDB) StorePost(post *BlogPost) (id int64, err os.Error) {
 }
 
 func post_holiday_transform(post *BlogPost) {
-	if today := time.LocalTime(); today.Day == 28 && today.Month == 6 {
-//		CAPSLOCK_DAY_TRANSFORM_POST(post)
+	if today := time.Now(); today.Day() == 28 && today.Month() == 6 {
+		//		CAPSLOCK_DAY_TRANSFORM_POST(post)
 	}
 }
 
 func comment_holiday_transform(comment *PostComment) {
-	if today := time.LocalTime(); today.Day == 28 && today.Month == 6 {
-//		CAPSLOCK_DAY_TRANSFORM_COMMENT(comment)
+	if today := time.Now(); today.Day() == 28 && today.Month() == 6 {
+		//		CAPSLOCK_DAY_TRANSFORM_COMMENT(comment)
 	}
 }
 
@@ -93,60 +92,54 @@ func CAPSLOCK_DAY_TRANSFORM_COMMENT(comment *PostComment) {
 	comment.Author = strings.ToUpper(comment.Author)
 }
 
-func (md *MongoDB) GetPost(post_id int64) (post BlogPost, err os.Error) {
+func (md *MongoDB) GetPost(post_id int64) (post BlogPost, err error) {
 	db := md.db
 	m := bson.M{"id": post_id}
 	err = db.C("posts").Find(m).One(&post)
 	if err != nil {
-		fmt.Printf("GetPost() err: %s\n", err.String())
+		fmt.Printf("GetPost() err: %s\n", err.Error())
 	}
 	post_holiday_transform(&post)
 	return
 }
 
 //returns posts for a certain date
-func (md *MongoDB) GetPostsForDate(date time.Time) (posts []BlogPost, err os.Error) {
-	date.Hour = 0
-	date.Minute = 0
-	date.Second = 0
+func (md *MongoDB) GetPostsForDate(date time.Time) (posts []BlogPost, err error) {
+	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 
-	start := date.Seconds()
+	start := date.Unix()
 	end := start + (24 * 60 * 60)
 
 	return md.GetPostsForTimespan(start, end, -1)
 }
 
 //returns posts for a certain month
-func (md *MongoDB) GetPostsForMonth(date time.Time) (posts []BlogPost, err os.Error) {
-	date.Hour = 0
-	date.Minute = 0
-	date.Second = 0
-	date.Day = 1
+func (md *MongoDB) GetPostsForMonth(date time.Time) (posts []BlogPost, err error) {
+	date = time.Date(date.Year(), date.Month(), 1, 0, 0, 0, 0, date.Location())
 
 	next_month := date
-	next_month.Month++
-	if next_month.Month > 12 {
-		next_month.Month = 1
-		next_month.Year++
+	next_month.AddDate(0, 1, 0)
+	if next_month.Month() > 12 {
+        next_month = time.Date(date.Year()+1, 1, 1, 0, 0, 0, 0, date.Location())
 	}
 
-	start := date.Seconds()
-	end := next_month.Seconds()
+	start := date.Unix()
+	end := next_month.Unix()
 
 	return md.GetPostsForTimespan(start, end, -1)
 }
 
-func (md *MongoDB) GetPostsForLastNDays(num_of_days int64) (posts []BlogPost, err os.Error) {
-	today := time.LocalTime()
-	s := today.Seconds()
+func (md *MongoDB) GetPostsForLastNDays(num_of_days int64) (posts []BlogPost, err error) {
+	today := time.Now()
+	s := today.Unix()
 	i := 0
 	for {
 		if num_of_days <= 0 || i >= 30 {
 			break
 		}
 		fmt.Printf("i: %d - s: %d\n", i, s)
-		d := time.SecondsToLocalTime(s)
-		p, e := md.GetPostsForDate(*d)
+		d := time.Unix(s, 0)
+		p, e := md.GetPostsForDate(d)
 		if e == nil && len(p) > 0 {
 			posts = append(posts, p...)
 			num_of_days--
@@ -157,8 +150,7 @@ func (md *MongoDB) GetPostsForLastNDays(num_of_days int64) (posts []BlogPost, er
 	return
 }
 
-
-func (md *MongoDB) GetPostsForTimespan(start_timestamp, end_timestamp, order int64) (posts []BlogPost, err os.Error) {
+func (md *MongoDB) GetPostsForTimespan(start_timestamp, end_timestamp, order int64) (posts []BlogPost, err error) {
 	db := md.db
 
 	m := bson.M{
@@ -166,17 +158,17 @@ func (md *MongoDB) GetPostsForTimespan(start_timestamp, end_timestamp, order int
 		"$orderby": bson.M{"timestamp": order},
 	}
 
-	iter, e := db.C("posts").Find(m).Iter()
-	if e != nil {
-		err = e
-		fmt.Printf("GetPostsForTimespan() err: %s\n", err.String())
-		return
-	}
+	iter  := db.C("posts").Find(m).Iter()
+	//if e != nil {
+	//	err = e
+	//	fmt.Printf("GetPostsForTimespan() err: %s\n", err.Error())
+	//	return
+	//}
 
 	for {
 		post := BlogPost{}
-		e := iter.Next(&post)
-		if e != nil {
+		ok := iter.Next(&post)
+		if !ok {
 			break
 		}
 		post_holiday_transform(&post)
@@ -186,7 +178,7 @@ func (md *MongoDB) GetPostsForTimespan(start_timestamp, end_timestamp, order int
 	return
 }
 
-func (md *MongoDB) GetLastNPosts(num_to_get int32) (posts []BlogPost, err os.Error) {
+func (md *MongoDB) GetLastNPosts(num_to_get int32) (posts []BlogPost, err error) {
 	db := md.db
 
 	m := bson.M{
@@ -194,17 +186,17 @@ func (md *MongoDB) GetLastNPosts(num_to_get int32) (posts []BlogPost, err os.Err
 		"$orderby": bson.M{"timestamp": -1},
 	}
 
-	iter, e := db.C("posts").Find(m).Limit(int(num_to_get)).Iter()
-	if e != nil {
-		fmt.Printf("GetLastNPosts() err: %s\n", err.String())
-		err = e
-		return
-	}
+	iter  := db.C("posts").Find(m).Limit(int(num_to_get)).Iter()
+	//if e != nil {
+	//	fmt.Printf("GetLastNPosts() err: %s\n", err.Error())
+	//	err = e
+	//	return
+	//}
 
 	for {
 		post := BlogPost{}
-		e := iter.Next(&post)
-		if e != nil {
+		ok := iter.Next(&post)
+		if !ok {
 			break
 		}
 		post_holiday_transform(&post)
@@ -213,12 +205,12 @@ func (md *MongoDB) GetLastNPosts(num_to_get int32) (posts []BlogPost, err os.Err
 	return
 }
 
-func (md *MongoDB) StoreComment(comment *PostComment) (id int64, err os.Error) {
+func (md *MongoDB) StoreComment(comment *PostComment) (id int64, err error) {
 	db := md.db
 
 	_, err = md.GetPost(comment.PostId)
 	if err != nil {
-		fmt.Printf("StoreComment() err: %s\n", err.String())
+		fmt.Printf("StoreComment() err: %s\n", err.Error())
 		return
 	}
 
@@ -238,7 +230,7 @@ func (md *MongoDB) StoreComment(comment *PostComment) (id int64, err os.Error) {
 }
 
 //get comments belonging to a post
-func (md *MongoDB) GetComments(post_id int64) (comments []PostComment, err os.Error) {
+func (md *MongoDB) GetComments(post_id int64) (comments []PostComment, err error) {
 	db := md.db
 
 	m := bson.M{
@@ -246,17 +238,17 @@ func (md *MongoDB) GetComments(post_id int64) (comments []PostComment, err os.Er
 		"$orderby": bson.M{"timestamp": 1},
 	}
 
-	iter, e := db.C("comments").Find(m).Iter()
-	if e != nil {
-		fmt.Printf("GetComments() err: %s\n", err.String())
-		err = e
-		return
-	}
+	iter := db.C("comments").Find(m).Iter()
+	//if e != nil {
+	//	fmt.Printf("GetComments() err: %s\n", err.Error())
+	//	err = e
+	//	return
+	//}
 
 	for {
 		comment := PostComment{}
-		e := iter.Next(&comment)
-		if e != nil {
+		ok := iter.Next(&comment)
+		if !ok {
 			break
 		}
 		comment_holiday_transform(&comment)

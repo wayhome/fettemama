@@ -1,17 +1,15 @@
 package main
 
 import (
-	"net"
 	"fmt"
-	"sync"
 	"log"
+	"net"
+	"sync"
 )
-
 
 const (
 	port = 1337
 )
-
 
 type TelnetServer struct {
 	formatter BlogFormatter
@@ -20,7 +18,7 @@ type TelnetServer struct {
 	status_chan  chan string
 
 	sessionsMutex   sync.RWMutex
-	sessions    map[int]*BlogSession
+	sessions        map[int]*BlogSession
 	last_session_id int
 }
 
@@ -57,19 +55,19 @@ func (srv *TelnetServer) Shutdown() {
 }
 
 func (srv *TelnetServer) PostStatus(status string) {
-    srv.status_chan <- status
+	srv.status_chan <- status
 }
 
-func bcast(ses *BlogSession, message string) {  
-					ses.Send("\n*** Broadcast: " + message)
-        	ses.SendPrompt()
-			}
+func bcast(ses *BlogSession, message string) {
+	ses.Send("\n*** Broadcast: " + message)
+	ses.SendPrompt()
+}
 
 //broadcasts message to all connected clients
 func (srv *TelnetServer) Broadcast(message string) {
-    for _, s := range srv.sessions {
-    	go bcast( s, message )
-    }
+	for _, s := range srv.sessions {
+		go bcast(s, message)
+	}
 }
 
 func (srv *TelnetServer) GetUserCount() int {
@@ -90,7 +88,7 @@ func (srv *TelnetServer) registerSession(session *BlogSession) {
 func (srv *TelnetServer) unregisterSession(session *BlogSession) {
 	srv.sessionsMutex.Lock()
 	id := session.Id()
-    srv.sessions[id] = nil, false
+	delete(srv.sessions, id)
 	srv.sessionsMutex.Unlock()
 }
 
@@ -105,7 +103,7 @@ func (srv *TelnetServer) handleClient(conn net.Conn) {
 
 	srv.PostStatus("* [" + (session.conn).RemoteAddr().String() + "] new connection")
 	srv.registerSession(session)
-	
+
 	session.SendVersion()
 	s := fmt.Sprintf("There are %d users active.\n", srv.GetUserCount())
 	session.Send(s)
@@ -121,7 +119,7 @@ func (srv *TelnetServer) serverFunc() {
 	tcpAddr, _ := net.ResolveTCPAddr("tcp", service)
 	listener, _ := net.ListenTCP("tcp4", tcpAddr)
 
-	srv.PostStatus ("listening on: " + tcpAddr.IP.String() + service)
+	srv.PostStatus("listening on: " + tcpAddr.IP.String() + service)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {

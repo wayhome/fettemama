@@ -1,14 +1,18 @@
-package main
+package shared
+import (
+  "time"
+)
 
 type BlogPost struct {
 	Content   string
-	Timestamp int64
+	//Timestamp int64
+	Timestamp time.Time
 	Id        int64
 	Comments  []PostComment
 }
 
 func (self BlogPost) Excerpt() string {
-	t := htmlstrip(self.Content)
+	t := Htmlstrip(self.Content)
 	l := 80
 	if len(t) <= 80 {
 		l = len(t)
@@ -20,9 +24,8 @@ func (self BlogPost) Excerpt() string {
 type PostComment struct {
 	Content   string
 	Author    string
-	Timestamp int64
+	//Timestamp int64
+	Timestamp time.Time
 	Id        int64
 	PostId    int64
 }
-
-

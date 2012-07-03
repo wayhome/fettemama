@@ -5,12 +5,12 @@ import (
 	//	"os"
 	"fmt"
 	//	"bufio"
-	"strings"
 	"strconv"
+	"strings"
 	"time"
+	"../shared"
 	//	"crypto/md5"
 )
-
 
 type BlogCommand struct {
 	handler        func(*BlogSession, []string) string
@@ -102,18 +102,17 @@ func (h *TelnetCommandHandler) setupCMDHandlers() {
 
 }
 
-
 func tch_handleRead(session *BlogSession, items []string) string {
 	if len(items) != 2 {
 		return "syntax: read <post_id>\n"
 	}
-	db := DBGet()
+	db := shared.DBGet()
 	defer db.Close()
 
-	id, _ := strconv.Atoi64(items[1])
+	id, _ := strconv.ParseInt(items[1], 10, 64)
 	post, err := db.GetPost(id)
 	if err != nil {
-		return err.String() + "\n"
+		return err.Error() + "\n"
 	}
 
 	post.Comments, _ = db.GetComments(post.Id)
@@ -148,23 +147,23 @@ func tch_handleComment(session *BlogSession, items []string) string {
 		return "syntax: comment <post_id> <your_nick> <your many words of comment>\n"
 	}
 
-	post_id, _ := strconv.Atoi64(items[1])
+	post_id, _ := strconv.ParseInt(items[1], 10, 64)
 	nick := items[2]
 	content := strings.Join(items[3:], " ")
 
-	comment := PostComment{
+	comment := shared.PostComment{
 		Content:   content,
 		Author:    nick,
-		Timestamp: time.Seconds(),
+		Timestamp: time.Now(),
 		PostId:    post_id,
 	}
 
-	db := DBGet()
+	db := shared.DBGet()
 	defer db.Close()
 
 	i, err := db.StoreComment(&comment)
 	if err != nil {
-		return "error: " + err.String() + "\n"
+		return "error: " + err.Error() + "\n"
 	}
 
 	s := fmt.Sprintf("commented post %d. your comment's id: %d\n", post_id, i)
@@ -183,22 +182,21 @@ func tch_handleBroadcast(session *BlogSession, items []string) string {
 	return "Broadcast sent\n"
 }
 
-
 func tch_handlePostingEnd(session *BlogSession, items []string) string {
 	session.SetState(state_reading)
 
-	post := BlogPost{
+	post := shared.BlogPost{
 		Content:   strings.Trim(strings.Replace(session.InputBuffer(), "$end", "", -1), "\n\r"),
-		Timestamp: time.Seconds(),
+		Timestamp: time.Now(),
 		Id:        0, //0 = create new post
 	}
 
-	db := DBGet()
+	db := shared.DBGet()
 	defer db.Close()
 
 	id, err := db.StorePost(&post)
 	if err != nil {
-		return "error: " + err.String() + "\n"
+		return "error: " + err.Error() + "\n"
 	}
 
 	s := fmt.Sprintf("saved post with id %d\n", id)
@@ -215,12 +213,12 @@ func tch_handleNews(session *BlogSession, items []string) string {
 		num, _ = strconv.Atoi(items[1])
 	}
 
-	db := DBGet()
+	db := shared.DBGet()
 	defer db.Close()
 
 	posts, err := db.GetLastNPosts(int32(num))
 	if err != nil {
-		return err.String() + "\n"
+		return err.Error() + "\n"
 	}
 
 	//post.Comments, _ = db.GetComments(post.Id)
@@ -240,24 +238,22 @@ func tch_handleToday(session *BlogSession, items []string) string {
 		return "syntax: today\n"
 	}
 
-	today_t := time.LocalTime()
-	today_t.Hour = 0
-	today_t.Minute = 0
-	today_t.Second = 0
+	today_t := time.Now()
+	today_t = time.Date(today_t.Year(), today_t.Month(), today_t.Day(), 0, 0, 0, 0, today_t.Location())
 
-	today := today_t.Seconds()
+	today := today_t.Unix()
 	tomorrow := today + (24 * 60 * 60)
 
 	//GetPostsForTimespan(start_timestamp, end_timestamp int64) (posts []BlogPost, err os.Error)
 
 	//    fmt.Printf("today: %d | tomorro: %d\n", today, tomorrow)
 
-	db := DBGet()
+	db := shared.DBGet()
 	defer db.Close()
 
 	posts, err := db.GetPostsForTimespan(today, tomorrow, 1)
 	if err != nil {
-		return err.String() + "\n"
+		return err.Error() + "\n"
 	}
 
 	//post.Comments, _ = db.GetComments(post.Id)
@@ -273,7 +269,6 @@ func tch_handleToday(session *BlogSession, items []string) string {
 func tch_handleNullspace(session *BlogSession, items []string) string {
 	return ""
 }
-
 
 func tch_handleHelp(session *BlogSession, items []string) string {
 

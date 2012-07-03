@@ -1,11 +1,11 @@
 package main
 
 import (
-	"web"
-	"time"
 	"strconv"
+	"time"
 	//"fmt"
-	"mustache"
+	"github.com/hoisie/mustache"
+	"github.com/hoisie/web"
 )
 
 func postForId(id int64) BlogPost {
@@ -16,7 +16,7 @@ func postForId(id int64) BlogPost {
 	return post
 }
 
-func postsForDay(date *time.Time) []BlogPost {
+func postsForDay(date time.Time) []BlogPost {
 	Db := DBGet()
 	defer Db.Close()
 
@@ -24,7 +24,7 @@ func postsForDay(date *time.Time) []BlogPost {
 	return posts
 }
 
-func postsForMonth(date *time.Time) []BlogPost {
+func postsForMonth(date time.Time) []BlogPost {
 	Db := DBGet()
 	defer Db.Close()
 
@@ -95,7 +95,7 @@ func index(ctx *web.Context) string {
 	var cur_date time.Time
 	var date *Date
 	for _, p := range posts {
-		post_date := time.SecondsToLocalTime(p.Timestamp)
+		post_date := time.Unix(p.Timestamp, 0)
 		if !(cur_date.Day == post_date.Day && cur_date.Month == post_date.Month && cur_date.Year == post_date.Year) {
 			cur_date = *post_date
 			dates = append(dates, Date{Date: cur_date.Format("Mon Jan _2 2006")})
@@ -120,7 +120,7 @@ func post(ctx *web.Context) string {
 	defer Db.Close()
 
 	id_s := ctx.Params["id"]
-	id, _ := strconv.Atoi64(id_s)
+	id, _ := strconv.ParseInt(id_s, 10, 64)
 	post := postForId(id)
 	post.Comments, _ = Db.GetComments(post.Id)
 
@@ -144,12 +144,12 @@ func month(ctx *web.Context) string {
 	mon := ctx.Params["m"]
 	yr := ctx.Params["y"]
 
-	d := time.LocalTime()
+	d := time.Now()
 	if len(mon) > 0 {
 		d.Month, _ = strconv.Atoi(mon)
 	}
 	if len(yr) > 0 {
-		d.Year, _ = strconv.Atoi64(yr)
+		d.Year, _ = strconv.ParseInt(yr, 10, 64)
 	}
 
 	posts := postsForMonth(d) //Db.GetLastNPosts(10)
@@ -174,7 +174,7 @@ func month(ctx *web.Context) string {
 	var cur_date time.Time
 	var date *Date
 	for _, p := range posts {
-		post_date := time.SecondsToLocalTime(p.Timestamp)
+		post_date := time.Unix(p.Timestamp, 0)
 		if !(cur_date.Day == post_date.Day && cur_date.Month == post_date.Month && cur_date.Year == post_date.Year) {
 			cur_date = *post_date
 			dates = append(dates, Date{Date: cur_date.Format("Mon Jan _2 2006")})
